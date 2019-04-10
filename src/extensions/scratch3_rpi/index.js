@@ -3,7 +3,7 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
 const mqtt = require('mqtt');
-const AsyncClient = require('async-mqtt').AsyncClient;
+// const AsyncClient = require('async-mqtt').AsyncClient;
 
 
 /**
@@ -23,13 +23,26 @@ const blockIconURI = 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNv
 
 const SensorType = {
     TILT: 'Tilt Switch',
-    PROXIMITY: 'Proximity Sensor'
+    PROXIMITY: 'Proximity Sensor',
+    SWITCH: 'Generic Switch',
+    HALL: 'Hall Effect Sensor'
 
+};
+
+const SwitchStates = {
+    FALSE: 'on',
+    TRUE: 'off'
 };
 
 const MotorBank = {
     A: 'A',
     B: 'B'
+
+};
+
+const BipolarMotorDirection = {
+    CW: '1',
+    CCW: '-1'
 
 };
 
@@ -128,7 +141,7 @@ class Scratch3RpiBlocks {
                         SENSORTYPE: {
                             type: ArgumentType.STRING,
                             menu: 'sensorTypes',
-                            defaultValue: SensorType.TILT
+                            defaultValue: SensorType.SWITCH
                         },
                         DEVICE_NAME: {
                             type: ArgumentType.STRING,
@@ -148,13 +161,13 @@ class Scratch3RpiBlocks {
                     opcode: 'hello-analog-sensor',
                     blockType: BlockType.COMMAND,
                     blockAllThreads: false,
-                    text: 'connect pcf8591 [SENSOR_NAME]at address[ADDR] of [DEVICE_NAME]',
+                    text: 'connect PCF8591 [SENSOR_NAME]at address[ADDR] of [DEVICE_NAME]',
                     func: 'helloAnalog',
                     arguments: {
                         SENSORTYPE: {
                             type: ArgumentType.STRING,
                             menu: 'sensorTypes',
-                            defaultValue: SensorType.TILT
+                            defaultValue: SensorType.HALL
                         },
                         DEVICE_NAME: {
                             type: ArgumentType.STRING,
@@ -225,6 +238,40 @@ class Scratch3RpiBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: '13'
                         }
+                    }
+                },
+                {
+                    opcode: 'hello-bipolar-motor',
+                    blockType: BlockType.COMMAND,
+                    blockAllThreads: false,
+                    text: 'connect DRV8825[BIPOLAR_MOTOR_NAME] STP[STP], SLEEP[SLEEP], DIR[DIR] of [DEVICE_NAME]',
+                    func: 'hellobipolar',
+                    arguments: {
+                        STP: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 23
+                        },
+                        SLEEP: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 24
+                        },
+
+                        DIR: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 25
+                        },
+
+
+                        DEVICE_NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'rpi1'
+                        },
+
+                        BIPOLAR_MOTOR_NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'BipolarMotor'
+                        }
+
                     }
                 },
 
@@ -354,6 +401,33 @@ class Scratch3RpiBlocks {
                         }
                     }
                 },
+                {
+                    opcode: 'bipolar-motor-power',
+                    blockType: BlockType.COMMAND,
+                    blockAllThreads: false,
+                    text: 'turn Bipolar Motor [BIPOLAR_MOTOR_NAME] of [DEVICE_NAME] direction [DIR] steps [STP]',
+                    func: 'powerBipolarMotor',
+                    arguments: {
+                        DEVICE_NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'rpi1'
+                        },
+                        BIPOLAR_MOTOR_NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'BipolarMotor'
+                        },
+                        STP: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 100
+                        },
+                        DIR: {
+                            type: ArgumentType.STRING,
+                            defaultValue: BipolarMotorDirection.CW,
+                            menu: 'BIPOLARMOTORDIRECTIONS'
+
+                        }
+                    }
+                },
 
                 {
                     opcode: 'stepper-power',
@@ -459,6 +533,49 @@ class Scratch3RpiBlocks {
                     func: 'isTilted'
                 },
                 {
+                    opcode: 'whenSwitched',
+                    blockType: BlockType.HAT,
+                    func: 'whenSwitched',
+                    text: 'when [SENSOR_NAME] of [DEVICE_NAME] is switched to [STATE]',
+                    arguments: {
+
+                        DEVICE_NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'rpi1'
+                        },
+
+                        SENSOR_NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'switchSensor'
+                        },
+                        STATE: {
+                            type: ArgumentType.STRING,
+                            defaultValue: SwitchStates.FALSE,
+                            menu: 'SWITCHSTATES'
+
+                        }
+                    }
+
+                },
+                {
+                    opcode: 'isSwitched',
+                    blockType: BlockType.BOOLEAN,
+                    text: 'switch sensor [SENSOR_NAME] of [DEVICE_NAME] switched?',
+                    arguments: {
+
+                        DEVICE_NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'rpi1'
+                        },
+
+                        SENSOR_NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'switchSensor'
+                        }
+                    },
+                    func: 'isSwitched'
+                },
+                {
                     opcode: 'readAnalog',
                     blockType: BlockType.REPORTER,
                     text: 'value [CHANNEL] of sensor [SENSOR_NAME] at [DEVICE_NAME]',
@@ -501,8 +618,10 @@ class Scratch3RpiBlocks {
                 }
             ],
             menus: {
-                sensorTypes: [SensorType.TILT, SensorType.PROXIMITY],
-                MOTORBANKS: [MotorBank.A, MotorBank.B]
+                sensorTypes: [SensorType.TILT, SensorType.PROXIMITY, SensorType.SWITCH],
+                MOTORBANKS: [MotorBank.A, MotorBank.B],
+                SWITCHSTATES: [SwitchStates.TRUE, SwitchStates.FALSE],
+                BIPOLARMOTORDIRECTIONS: [BipolarMotorDirection.CW, BipolarMotorDirection.CCW]
 
             },
             // translations
@@ -558,6 +677,26 @@ class Scratch3RpiBlocks {
                 switch (topic) {
                 case `rpi/devices/sensors/tilt/${args.PIN}`:
                     self.devices[args.DEVICE_NAME].state[args.SENSOR_NAME].tilted = String(message) === 'true';
+                    break;
+                }
+            });
+        }
+
+        if (args.SENSORTYPE === SensorType.SWITCH) {
+            this.devices[args.DEVICE_NAME].state[args.SENSOR_NAME] = {switched: false};
+            this.clients[args.DEVICE_NAME].publish('rpi/subscription',
+                JSON.stringify({
+                    command: 'SUBSCRIBE',
+                    args: {ALIAS: args.SENSOR_NAME, DEVICE: 'SWITCH', PIN: args.PIN}
+                }));
+
+
+            client.on('message', (topic, message) => {
+
+                message = new TextDecoder('utf-8').decode(message);
+                switch (topic) {
+                case `rpi/devices/sensors/switch/${args.PIN}`:
+                    self.devices[args.DEVICE_NAME].state[args.SENSOR_NAME].switched = String(message) === 'true';
                     break;
                 }
             });
@@ -646,7 +785,13 @@ class Scratch3RpiBlocks {
 
     hellofng (args) {
         this.clients[args.DEVICE_NAME]
-            .publish('rpi/initialization', JSON.stringify({command: 'INIT', args: args}));
+            .publish('rpi/initialization', JSON.stringify({command: 'INIT_TB6612FNG', args: args}));
+
+    }
+
+    hellobipolar (args) {
+        this.clients[args.DEVICE_NAME]
+            .publish('rpi/initialization', JSON.stringify({command: 'INIT_DRV8825', args: args}));
 
     }
 
@@ -673,6 +818,17 @@ class Scratch3RpiBlocks {
             this.devices[args.DEVICE_NAME].state[args.SENSOR_NAME].tilted;
     }
 
+    whenSwitched (args) {
+        return this.devices[args.DEVICE_NAME] && this.devices[args.DEVICE_NAME].state[args.SENSOR_NAME] &&
+            this.devices[args.DEVICE_NAME].state[args.SENSOR_NAME].switched === (args.STATE === 'off');
+    }
+
+    isSwitched (args) {
+        return this.devices[args.DEVICE_NAME] &&
+            this.devices[args.DEVICE_NAME].state[args.SENSOR_NAME] &&
+            this.devices[args.DEVICE_NAME].state[args.SENSOR_NAME].switched;
+    }
+
     isProximal (args) {
         return this.devices[args.DEVICE_NAME] &&
             this.devices[args.DEVICE_NAME].state[args.SENSOR_NAME] &&
@@ -688,6 +844,11 @@ class Scratch3RpiBlocks {
     powerMotor (args) {
         this.clients[args.DEVICE_NAME]
             .publish('rpi/devices/actuators/motor', JSON.stringify({command: 'MOTOR', args: args}));
+
+    }
+    powerBipolarMotor (args) {
+        this.clients[args.DEVICE_NAME]
+            .publish('rpi/devices/actuators/bipolar', JSON.stringify({command: 'BIPOLAR_MOTOR', args: args}));
 
     }
 
